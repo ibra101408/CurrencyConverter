@@ -13,6 +13,7 @@ struct ContentView: View {
     @State private var targets: [TargetCurrency] = []
     @State private var newCurrency: String = ""
     @State private var ratesDate: String = ""
+    @State private var isDarkMode: Bool = false
 
     // Prevent feedback loops when we programmatically update fields
     @State private var isProgrammaticUpdate = false
@@ -38,6 +39,29 @@ struct ContentView: View {
     var body: some View {
         GeometryReader { geometry in
             VStack {
+                // Top bar with dark mode toggle
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isDarkMode.toggle()
+                        }
+                    }) {
+                        Image(systemName: isDarkMode ? "sun.max.fill" : "moon.fill")
+                            .font(.title2)
+                            .foregroundColor(isDarkMode ? .yellow : .blue)
+                            .padding(12)
+                            .background(
+                                Circle()
+                                    .fill(isDarkMode ? Color.black.opacity(0.2) : Color.white.opacity(0.2))
+                                    .shadow(color: isDarkMode ? .white.opacity(0.1) : .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal)
+                .padding(.top, 10)
+                
                 Spacer()
                 
                 VStack(spacing: 24) {
@@ -45,7 +69,7 @@ struct ContentView: View {
                         .font(.system(size: 32, weight: .bold, design: .rounded))
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [.blue, .purple],
+                                colors: isDarkMode ? [.cyan, .purple] : [.blue, .purple],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -93,15 +117,14 @@ struct ContentView: View {
                                     guard !isProgrammaticUpdate else { return }
                                     convertBasedOnFocus()
                                 }
-                                // FLAG POSITION: Change the width value below to move flag left/right
-                                // Smaller width = more left, larger width = more right
                                 .frame(width: 110, alignment: .center)
                             }
                             
                             TextField("Enter amount", text: $baseAmount)
                                 .keyboardType(.decimalPad)
                                 .padding(16)
-                                .background(Color(.systemBackground))
+                                .background(isDarkMode ? Color(.systemGray6) : Color(.systemBackground))
+                                .foregroundColor(.primary)
                                 .cornerRadius(12)
                                 .focused($focusedField, equals: .base)
                                 .onChange(of: baseAmount) { _ in
@@ -112,13 +135,16 @@ struct ContentView: View {
                         .padding(20)
                         .background(
                             LinearGradient(
-                                gradient: Gradient(colors: [.blue, .purple]),
+                                gradient: Gradient(colors: isDarkMode ? [.cyan.opacity(0.3), .purple.opacity(0.3)] : [.blue.opacity(0.5), .purple.opacity(0.5)]),
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
-                            .opacity(0.5)
                         )
                         .cornerRadius(16)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.clear, lineWidth: 1)
+                        )
 
                         // Target rows
                         ForEach($targets) { $target in
@@ -156,8 +182,6 @@ struct ContentView: View {
                                         guard !isProgrammaticUpdate else { return }
                                         convertBasedOnFocus()
                                     }
-                                    // FLAG POSITION: Change the width value below to move flag left/right
-                                    // Smaller width = more left, larger width = more right
                                     .frame(width: 110, alignment: .center)
                                 }
                                 .overlay(
@@ -177,7 +201,8 @@ struct ContentView: View {
                                 TextField("Enter amount", text: $target.amount)
                                     .keyboardType(.decimalPad)
                                     .padding(16)
-                                    .background(Color(.systemBackground))
+                                    .background(isDarkMode ? Color(.systemGray6) : Color(.systemBackground))
+                                    .foregroundColor(.primary)
                                     .cornerRadius(12)
                                     .focused($focusedField, equals: .target(target.id))
                                     .onChange(of: target.amount) { _ in
@@ -188,13 +213,16 @@ struct ContentView: View {
                             .padding(20)
                             .background(
                                 LinearGradient(
-                                    gradient: Gradient(colors: [.blue, .purple]),
+                                    gradient: Gradient(colors: isDarkMode ? [.cyan.opacity(0.3), .purple.opacity(0.3)] : [.blue.opacity(0.5), .purple.opacity(0.5)]),
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
-                                .opacity(0.5)
                             )
                             .cornerRadius(16)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.clear, lineWidth: 1)
+                            )
                         }
 
                         // Add new currency
@@ -211,16 +239,20 @@ struct ContentView: View {
                             } label: {
                                 HStack {
                                     Image(systemName: "plus.circle.fill")
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(isDarkMode ? .cyan : .blue)
                                         .font(.title2)
                                     Text("Add Currency")
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(isDarkMode ? .cyan : .blue)
                                     Spacer()
                                 }
                             }
                             .padding(20)
-                            .background(Color(.systemGray6))
+                            .background(isDarkMode ? Color(.systemGray5) : Color(.systemGray6))
                             .cornerRadius(16)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.clear, lineWidth: 1)
+                            )
                         }
                     }
                     .frame(maxWidth: min(400, geometry.size.width - 40))
@@ -231,6 +263,20 @@ struct ContentView: View {
             .frame(maxWidth: .infinity)
         }
         .padding()
+        .background(
+            isDarkMode ?
+            LinearGradient(
+                gradient: Gradient(colors: [Color.black, Color(.systemGray6)]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ) :
+            LinearGradient(
+                gradient: Gradient(colors: [Color(.systemBackground), Color(.systemGray6)]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .preferredColorScheme(isDarkMode ? .dark : .light)
         .onAppear { fetchCurrencies() }
     }
 
@@ -305,7 +351,7 @@ struct ContentView: View {
 
         let fromCode = targets[index].code
         let urlStr = "https://api.frankfurter.app/latest?amount=\(amountValue)&from=\(fromCode)"
-        guard let url = URL(string: urlStr) else { return }
+        guard let url = URL(string: urlStr) else { rceturn }
         print("🌐 GET: \(urlStr)")
 
         URLSession.shared.dataTask(with: url) { data, _, error in
