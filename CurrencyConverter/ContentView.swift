@@ -1,20 +1,28 @@
 import SwiftUI
 
+struct TargetCurrency: Identifiable {
+    let id = UUID()
+    var code: String
+    var amount: String = ""
+}
+
 struct ContentView: View {
-    @State private var amountFrom: String = ""
-    @State private var amountTo: String = ""
-    @State private var fromCurrency: String = ""
-    @State private var toCurrency: String = ""
+    @State private var baseAmount: String = ""
+    @State private var baseCurrency: String = ""
     @State private var currencies: [String: String] = [:] // code -> name
+    @State private var targets: [TargetCurrency] = []
+    @State private var newCurrency: String = ""
+    @State private var ratesDate: String = ""
 
     // Prevent feedback loops when we programmatically update fields
     @State private var isProgrammaticUpdate = false
 
     // Track which text field the user is editing
-    @FocusState private var focusedField: Field?
-
-    enum Field { case from, to }
-    enum ConversionDirection { case from, to }
+    enum FocusedField: Hashable {
+        case base
+        case target(UUID)
+    }
+    @FocusState private var focusedField: FocusedField?
 
     // Minimal mapping currency -> country code for flag. Add more as you like.
     let currencyFlags: [String: String] = [
@@ -28,169 +36,230 @@ struct ContentView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            Text("Currency Converter")
-                .font(.largeTitle)
-                .fontWeight(.semibold)
-                .foregroundColor(.primary)
-                .padding(.top, 20)
-                .padding(.bottom, 40)
-            
-            Spacer()
-            
-            VStack(spacing: 30) {
-                // FROM currency container
-                VStack(spacing: 12) {
-                    Text("From")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    VStack(spacing: 15) {
-                        Picker("From", selection: $fromCurrency) {
-                            ForEach(currencies.keys.sorted(), id: \.self) { code in
-                                Text("\(flag(from: currencyFlags[code] ?? "")) \(code) – \(currencies[code] ?? "")")
-                                    .tag(code)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
-                        .onChange(of: fromCurrency) { _ in
-                            guard !isProgrammaticUpdate else { return }
-                            let dir: ConversionDirection = (focusedField == .to) ? .from : .to
-                            convertCurrency(direction: dir)
-                        }
-                        
-                        TextField("0.00", text: $amountFrom)
-                            .keyboardType(.decimalPad)
-                            .font(.title2)
-                            .fontWeight(.medium)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 16)
-                            .background(Color(.systemBackground))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(focusedField == .from ? Color.blue : Color(.systemGray4), lineWidth: 1.5)
-                            )
-                            .cornerRadius(12)
-                            .focused($focusedField, equals: .from)
-                            .onChange(of: amountFrom) { _ in
-                                guard focusedField == .from, !isProgrammaticUpdate else { return }
-                                convertCurrency(direction: .to)
-                            }
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 20)
-                .background(Color(.systemGray6).opacity(0.3))
-                .cornerRadius(16)
+        GeometryReader { geometry in
+            VStack {
+                Spacer()
                 
-                // Arrow indicator
-                Image(systemName: "arrow.down")
-                    .font(.title2)
-                    .foregroundColor(.secondary)
-                    .padding(.vertical, 5)
-                
-                // TO currency container
-                VStack(spacing: 12) {
-                    Text("To")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    VStack(spacing: 15) {
-                        Picker("To", selection: $toCurrency) {
-                            ForEach(currencies.keys.sorted(), id: \.self) { code in
-                                Text("\(flag(from: currencyFlags[code] ?? "")) \(code) – \(currencies[code] ?? "")")
-                                    .tag(code)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
-                        .onChange(of: toCurrency) { _ in
-                            guard !isProgrammaticUpdate else { return }
-                            let dir: ConversionDirection = (focusedField == .to) ? .from : .to
-                            convertCurrency(direction: dir)
-                        }
-                        
-                        TextField("0.00", text: $amountTo)
-                            .keyboardType(.decimalPad)
-                            .font(.title2)
-                            .fontWeight(.medium)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 16)
-                            .background(Color(.systemBackground))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(focusedField == .to ? Color.blue : Color(.systemGray4), lineWidth: 1.5)
+                VStack(spacing: 24) {
+                    Text("Currency Converter")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .leading,
+                                endPoint: .trailing
                             )
-                            .cornerRadius(12)
-                            .focused($focusedField, equals: .to)
-                            .onChange(of: amountTo) { _ in
-                                guard focusedField == .to, !isProgrammaticUpdate else { return }
-                                convertCurrency(direction: .from)
-                            }
+                        )
+
+                    if !ratesDate.isEmpty {
+                        Text("Rates as of \(ratesDate)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
+
+                    VStack(spacing: 20) {
+                        // Base row
+                        VStack(spacing: 12) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(baseCurrency)
+                                        .font(.title2)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    Text(currencies[baseCurrency] ?? "")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                
+                                Menu {
+                                    ForEach(currencies.keys.sorted().filter { !targets.map(\.code).contains($0) }, id: \.self) { code in
+                                        Button {
+                                            baseCurrency = code
+                                        } label: {
+                                            Text("\(flag(from: currencyFlags[code] ?? "")) \(code) – \(currencies[code] ?? "")")
+                                        }
+                                    }
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Text(flag(from: currencyFlags[baseCurrency] ?? ""))
+                                            .font(.largeTitle)
+                                        Image(systemName: "chevron.down")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .onChange(of: baseCurrency) { _ in
+                                    guard !isProgrammaticUpdate else { return }
+                                    convertBasedOnFocus()
+                                }
+                                // FLAG POSITION: Change the width value below to move flag left/right
+                                // Smaller width = more left, larger width = more right
+                                .frame(width: 110, alignment: .center)
+                            }
+                            
+                            TextField("Enter amount", text: $baseAmount)
+                                .keyboardType(.decimalPad)
+                                .padding(16)
+                                .background(Color(.systemBackground))
+                                .cornerRadius(12)
+                                .focused($focusedField, equals: .base)
+                                .onChange(of: baseAmount) { _ in
+                                    guard focusedField == .base, !isProgrammaticUpdate else { return }
+                                    convertFromBase()
+                                }
+                        }
+                        .padding(20)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [.blue, .purple]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                            .opacity(0.5)
+                        )
+                        .cornerRadius(16)
+
+                        // Target rows
+                        ForEach($targets) { $target in
+                            VStack(spacing: 12) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(target.code)
+                                            .font(.title2)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.primary)
+                                        Text(currencies[target.code] ?? "")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    
+                                    Menu {
+                                        ForEach(currencies.keys.sorted().filter { $0 != baseCurrency && (!targets.map(\.code).contains($0) || $0 == target.code) }, id: \.self) { code in
+                                            Button {
+                                                target.code = code
+                                            } label: {
+                                                Text("\(flag(from: currencyFlags[code] ?? "")) \(code) – \(currencies[code] ?? "")")
+                                            }
+                                        }
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Text(flag(from: currencyFlags[target.code] ?? ""))
+                                                .font(.largeTitle)
+                                            Image(systemName: "chevron.down")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                    .onChange(of: target.code) { _ in
+                                        guard !isProgrammaticUpdate else { return }
+                                        convertBasedOnFocus()
+                                    }
+                                    // FLAG POSITION: Change the width value below to move flag left/right
+                                    // Smaller width = more left, larger width = more right
+                                    .frame(width: 110, alignment: .center)
+                                }
+                                .overlay(
+                                    Button {
+                                        if let index = targets.firstIndex(where: { $0.id == target.id }) {
+                                            targets.remove(at: index)
+                                        }
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.red)
+                                            .font(.caption)
+                                    }
+                                    .buttonStyle(.borderless),
+                                    alignment: .topTrailing
+                                )
+                                
+                                TextField("Enter amount", text: $target.amount)
+                                    .keyboardType(.decimalPad)
+                                    .padding(16)
+                                    .background(Color(.systemBackground))
+                                    .cornerRadius(12)
+                                    .focused($focusedField, equals: .target(target.id))
+                                    .onChange(of: target.amount) { _ in
+                                        guard focusedField == .target(target.id), !isProgrammaticUpdate else { return }
+                                        convertFromTarget(id: target.id)
+                                    }
+                            }
+                            .padding(20)
+                            .background(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [.blue, .purple]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                                .opacity(0.5)
+                            )
+                            .cornerRadius(16)
+                        }
+
+                        // Add new currency
+                        if targets.count < 4 {
+                            Menu {
+                                ForEach(currencies.keys.sorted().filter { $0 != baseCurrency && !targets.map(\.code).contains($0) }, id: \.self) { code in
+                                    Button {
+                                        targets.append(TargetCurrency(code: code))
+                                        convertBasedOnFocus()
+                                    } label: {
+                                        Text("\(flag(from: currencyFlags[code] ?? "")) \(code) – \(currencies[code] ?? "")")
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundColor(.blue)
+                                        .font(.title2)
+                                    Text("Add Currency")
+                                        .foregroundColor(.blue)
+                                    Spacer()
+                                }
+                            }
+                            .padding(20)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(16)
+                        }
+                    }
+                    .frame(maxWidth: min(400, geometry.size.width - 40))
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 20)
-                .background(Color(.systemGray6).opacity(0.3))
-                .cornerRadius(16)
+                
+                Spacer()
             }
-            .padding(.horizontal, 30)
-            
-            Spacer()
+            .frame(maxWidth: .infinity)
         }
-        .background(Color(.systemGroupedBackground))
+        .padding()
         .onAppear { fetchCurrencies() }
     }
 
-    // MARK: - Conversion
-    func convertCurrency(direction: ConversionDirection) {
-        // Ensure selections exist first
-        guard !fromCurrency.isEmpty, !toCurrency.isEmpty else {
-            print("⚠️ Select currencies first")
+    // MARK: - Conversion Helpers
+    private func convertBasedOnFocus() {
+        if let focused = focusedField {
+            switch focused {
+            case .base:
+                convertFromBase()
+            case .target(let id):
+                convertFromTarget(id: id)
+            }
+        } else {
+            convertFromBase()
+        }
+    }
+
+    private func convertFromBase() {
+        guard !baseCurrency.isEmpty, let amountValue = Double(baseAmount) else {
+            isProgrammaticUpdate = true
+            ratesDate = ""
+            for i in targets.indices {
+                targets[i].amount = ""
+            }
+            isProgrammaticUpdate = false
             return
         }
 
-        let fromCode: String
-        let toCode: String
-        let amountStr: String
-
-        switch direction {
-        case .to:
-            guard let amountValue = Double(amountFrom) else {
-                isProgrammaticUpdate = true; amountTo = ""; isProgrammaticUpdate = false
-                return
-            }
-            fromCode = fromCurrency
-            toCode = toCurrency
-            amountStr = String(amountValue)
-
-        case .from:
-            guard let amountValue = Double(amountTo) else {
-                isProgrammaticUpdate = true; amountFrom = ""; isProgrammaticUpdate = false
-                return
-            }
-            fromCode = toCurrency
-            toCode = fromCurrency
-            amountStr = String(amountValue)
-        }
-
-        let urlStr = "https://api.frankfurter.app/latest?amount=\(amountStr)&from=\(fromCode)&to=\(toCode)"
+        let urlStr = "https://api.frankfurter.app/latest?amount=\(amountValue)&from=\(baseCurrency)"
         guard let url = URL(string: urlStr) else { return }
         print("🌐 GET: \(urlStr)")
 
@@ -200,19 +269,71 @@ struct ContentView: View {
 
             do {
                 let decoded = try JSONDecoder().decode(RatesResponse.self, from: data)
-                if let converted = decoded.rates[toCode] {
-                    DispatchQueue.main.async {
-                        self.isProgrammaticUpdate = true
-                        let formatted = String(format: "%.2f", converted)
-                        if direction == .to {
-                            self.amountTo = formatted
+                let rates = decoded.rates
+                DispatchQueue.main.async {
+                    self.isProgrammaticUpdate = true
+                    self.ratesDate = decoded.date
+                    for i in self.targets.indices {
+                        let code = self.targets[i].code
+                        if let converted = rates[code] {
+                            self.targets[i].amount = String(format: "%.2f", converted)
                         } else {
-                            self.amountFrom = formatted
+                            self.targets[i].amount = ""
                         }
-                        self.isProgrammaticUpdate = false
                     }
-                } else {
-                    print("❌ Missing rate for \(toCode)")
+                    self.isProgrammaticUpdate = false
+                }
+            } catch {
+                print("❌ Decode error:", error)
+            }
+        }.resume()
+    }
+
+    private func convertFromTarget(id: UUID) {
+        guard let index = targets.firstIndex(where: { $0.id == id }),
+              !targets[index].code.isEmpty,
+              let amountValue = Double(targets[index].amount) else {
+            isProgrammaticUpdate = true
+            ratesDate = ""
+            baseAmount = ""
+            for i in targets.indices where targets[i].id != id {
+                targets[i].amount = ""
+            }
+            isProgrammaticUpdate = false
+            return
+        }
+
+        let fromCode = targets[index].code
+        let urlStr = "https://api.frankfurter.app/latest?amount=\(amountValue)&from=\(fromCode)"
+        guard let url = URL(string: urlStr) else { return }
+        print("🌐 GET: \(urlStr)")
+
+        URLSession.shared.dataTask(with: url) { data, _, error in
+            if let error = error { print("❌ Network error:", error.localizedDescription); return }
+            guard let data = data else { print("❌ No data"); return }
+
+            do {
+                let decoded = try JSONDecoder().decode(RatesResponse.self, from: data)
+                let rates = decoded.rates
+                DispatchQueue.main.async {
+                    self.isProgrammaticUpdate = true
+                    self.ratesDate = decoded.date
+                    // Update base
+                    if let converted = rates[self.baseCurrency] {
+                        self.baseAmount = String(format: "%.2f", converted)
+                    } else {
+                        self.baseAmount = ""
+                    }
+                    // Update other targets
+                    for i in self.targets.indices where self.targets[i].id != id {
+                        let code = self.targets[i].code
+                        if let converted = rates[code] {
+                            self.targets[i].amount = String(format: "%.2f", converted)
+                        } else {
+                            self.targets[i].amount = ""
+                        }
+                    }
+                    self.isProgrammaticUpdate = false
                 }
             } catch {
                 print("❌ Decode error:", error)
@@ -249,21 +370,20 @@ struct ContentView: View {
                     print("✅ Loaded \(self.currencies.count) currencies")
 
                     // Set sensible defaults if needed
-                    if self.fromCurrency.isEmpty || self.currencies[self.fromCurrency] == nil {
+                    if self.baseCurrency.isEmpty || self.currencies[self.baseCurrency] == nil {
                         self.isProgrammaticUpdate = true
-                        self.fromCurrency = "USD"
+                        self.baseCurrency = "USD"
                         self.isProgrammaticUpdate = false
                     }
-                    if self.toCurrency.isEmpty || self.currencies[self.toCurrency] == nil {
-                        self.isProgrammaticUpdate = true
-                        self.toCurrency = "EUR"
-                        self.isProgrammaticUpdate = false
+                    if self.targets.isEmpty {
+                        self.targets = [TargetCurrency(code: "EUR")]
                     }
 
-                    // If user typed before currencies arrived, do an initial conversion
-                    if !self.amountFrom.isEmpty {
-                        self.convertCurrency(direction: .to)
+                    // Set initial amount and convert
+                    if self.baseAmount.isEmpty {
+                        self.baseAmount = "1"
                     }
+                    self.convertFromBase()
                 }
             } catch {
                 print("❌ Decode error:", error)
