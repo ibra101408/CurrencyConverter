@@ -1,9 +1,3 @@
-//
-//  README.md
-//  JustCurrencyConverter
-//
-//  Created by Daniil Vodenejev on 01.10.2025.
-//
 # JustCurrencyConverter
 
 A simple and minimalistic iOS app for converting currencies.
