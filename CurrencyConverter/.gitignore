@@ -1,0 +1,10 @@
+
+# API Keys & Secrets
+Config.plist
+
+# Xcode
+*.xcuserstate
+*.xcworkspace
+*.xcodeproj/project.xcworkspace
+*.xcodeproj/xcuserdata/
+.DS_Store
