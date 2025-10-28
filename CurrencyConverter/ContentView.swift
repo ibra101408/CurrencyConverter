@@ -92,6 +92,10 @@ struct ContentView: View {
     @State private var isDarkMode: Bool = false
     @State private var isOfflineMode: Bool = false
     @State private var offlineRates: [String: Double] = [:]
+    @State private var showingCurrencyPicker = false
+    @State private var isSelectingBase = false
+    @State private var searchText = ""
+    @State private var editingTargetID: UUID? = nil
 
     // Prevent feedback loops when we programmatically update fields
     @State private var isProgrammaticUpdate = false
@@ -373,14 +377,12 @@ struct ContentView: View {
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 
-                                Menu {
-                                    ForEach(currencies.keys.sorted().filter { !targets.map(\.code).contains($0) }, id: \.self) { code in
-                                        Button {
-                                            baseCurrency = code
-                                        } label: {
-                                            Text("\(flag(from: currencyFlags[code] ?? "")) \(code) – \(currencies[code] ?? "")")
-                                        }
-                                    }
+                                // Button to open searchable picker for base currency
+                                Button {
+                                    isSelectingBase = true
+                                    editingTargetID = nil
+                                    searchText = ""
+                                    showingCurrencyPicker = true
                                 } label: {
                                     HStack(spacing: 4) {
                                         Text(flag(from: currencyFlags[baseCurrency] ?? ""))
@@ -390,11 +392,11 @@ struct ContentView: View {
                                             .foregroundColor(.secondary)
                                     }
                                 }
+                                .frame(width: 110, alignment: .center)
                                 .onChange(of: baseCurrency) { _ in
                                     guard !isProgrammaticUpdate else { return }
                                     convertBasedOnFocus()
                                 }
-                                .frame(width: 110, alignment: .center)
                             }
                             
                             TextField("Enter amount", text: $baseAmount)
@@ -404,7 +406,14 @@ struct ContentView: View {
                                 .foregroundColor(.primary)
                                 .cornerRadius(12)
                                 .focused($focusedField, equals: .base)
-                                .onChange(of: baseAmount) { _ in
+                                .onChange(of: baseAmount) { newValue in
+                                    // Normalize locale input: treat "," as "."
+                                    let normalized = newValue.replacingOccurrences(of: ",", with: ".")
+                                    if normalized != newValue {
+                                        isProgrammaticUpdate = true
+                                        baseAmount = normalized
+                                        isProgrammaticUpdate = false
+                                    }
                                     guard focusedField == .base, !isProgrammaticUpdate else { return }
                                     convertFromBase()
                                 }
@@ -438,14 +447,12 @@ struct ContentView: View {
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     
-                                    Menu {
-                                        ForEach(currencies.keys.sorted().filter { $0 != baseCurrency && (!targets.map(\.code).contains($0) || $0 == target.code) }, id: \.self) { code in
-                                            Button {
-                                                target.code = code
-                                            } label: {
-                                                Text("\(flag(from: currencyFlags[code] ?? "")) \(code) – \(currencies[code] ?? "")")
-                                            }
-                                        }
+                                    // Button to open searchable picker for a target currency
+                                    Button {
+                                        isSelectingBase = false
+                                        editingTargetID = target.id
+                                        searchText = ""
+                                        showingCurrencyPicker = true
                                     } label: {
                                         HStack(spacing: 4) {
                                             Text(flag(from: currencyFlags[target.code] ?? ""))
@@ -455,11 +462,11 @@ struct ContentView: View {
                                                 .foregroundColor(.secondary)
                                         }
                                     }
+                                    .frame(width: 110, alignment: .center)
                                     .onChange(of: target.code) { _ in
                                         guard !isProgrammaticUpdate else { return }
                                         convertBasedOnFocus()
                                     }
-                                    .frame(width: 110, alignment: .center)
                                 }
                                 .overlay(
                                     Button {
@@ -482,7 +489,16 @@ struct ContentView: View {
                                     .foregroundColor(.primary)
                                     .cornerRadius(12)
                                     .focused($focusedField, equals: .target(target.id))
-                                    .onChange(of: target.amount) { _ in
+                                    .onChange(of: target.amount) { newValue in
+                                        // Normalize locale input: treat "," as "."
+                                        let normalized = newValue.replacingOccurrences(of: ",", with: ".")
+                                        if normalized != newValue {
+                                            isProgrammaticUpdate = true
+                                            if let idx = targets.firstIndex(where: { $0.id == target.id }) {
+                                                targets[idx].amount = normalized
+                                            }
+                                            isProgrammaticUpdate = false
+                                        }
                                         guard focusedField == .target(target.id), !isProgrammaticUpdate else { return }
                                         convertFromTarget(id: target.id)
                                     }
@@ -504,15 +520,12 @@ struct ContentView: View {
                         
                         // Add new currency
                         if targets.count < 4 {
-                            Menu {
-                                ForEach(currencies.keys.sorted().filter { $0 != baseCurrency && !targets.map(\.code).contains($0) }, id: \.self) { code in
-                                    Button {
-                                        targets.append(TargetCurrency(code: code))
-                                        convertBasedOnFocus()
-                                    } label: {
-                                        Text("\(flag(from: currencyFlags[code] ?? "")) \(code) – \(currencies[code] ?? "")")
-                                    }
-                                }
+                            // Open picker pre-filtered to allowed currencies
+                            Button {
+                                isSelectingBase = false
+                                editingTargetID = UUID() // temporary; will add new on select
+                                searchText = ""
+                                showingCurrencyPicker = true
                             } label: {
                                 HStack {
                                     Image(systemName: "plus.circle.fill")
@@ -561,6 +574,56 @@ struct ContentView: View {
         .onAppear {
             loadOfflineData()
             fetchCurrencies()
+        }
+        // Searchable picker sheet
+        .sheet(isPresented: $showingCurrencyPicker) {
+            NavigationStack {
+                VStack(spacing: 0) {
+                    // Inline search bar
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.secondary)
+                        TextField("Search currency or code", text: $searchText)
+                            .textInputAutocapitalization(.characters)
+                            .autocorrectionDisabled(true)
+                    }
+                    .padding(12)
+                    .background(.ultraThinMaterial)
+                    
+                    // Filtered list
+                    List(filteredCurrencyCodes(), id: \.self) { code in
+                        Button {
+                            applyCurrencySelection(code: code)
+                        } label: {
+                            HStack(spacing: 12) {
+                                Text(flag(from: currencyFlags[code] ?? ""))
+                                VStack(alignment: .leading) {
+                                    Text(code)
+                                        .font(.headline)
+                                    Text(currencies[code] ?? "")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                if (isSelectingBase && code == baseCurrency) ||
+                                    (!isSelectingBase && targets.map(\.code).contains(code)) {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.accentColor)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                        }
+                    }
+                    .listStyle(.insetGrouped)
+                }
+                .navigationTitle(isSelectingBase ? "Select Base Currency" : "Select Currency")
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Close") { showingCurrencyPicker = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
         }
     }
     
@@ -1041,6 +1104,46 @@ struct ContentView: View {
                 }
             }.resume()
         }
+    
+    // MARK: - Searchable picker helpers
+    private func filteredCurrencyCodes() -> [String] {
+        // Allowed list depends on whether picking base or target
+        let disallow: Set<String> = isSelectingBase
+            ? Set(targets.map(\.code)) // base cannot be a currently selected target
+            : Set([baseCurrency])      // target cannot be current base
+        
+        let all = currencies.keys.sorted()
+        let filteredByAllow = all.filter { !disallow.contains($0) || (!isSelectingBase && editingTargetID == nil) }
+        
+        guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return filteredByAllow
+        }
+        let q = searchText.lowercased()
+        return filteredByAllow.filter { code in
+            let name = currencies[code]?.lowercased() ?? ""
+            return code.lowercased().contains(q) || name.contains(q)
+        }
+    }
+    
+    private func applyCurrencySelection(code: String) {
+        if isSelectingBase {
+            baseCurrency = code
+        } else {
+            // If adding a new currency (from the "Add Currency" button)
+            if editingTargetID == nil || !targets.contains(where: { $0.id == editingTargetID }) {
+                if !targets.map(\.code).contains(code) && code != baseCurrency && targets.count < 4 {
+                    targets.append(TargetCurrency(code: code))
+                }
+            } else {
+                if let idx = targets.firstIndex(where: { $0.id == editingTargetID }) {
+                    targets[idx].code = code
+                }
+            }
+        }
+        showingCurrencyPicker = false
+        // Trigger conversion
+        convertBasedOnFocus()
+    }
     }
 
     // MARK: - Models
@@ -1070,3 +1173,4 @@ struct ContentView: View {
             self.codes = try container.decode([String: String].self)
         }
     }
+
