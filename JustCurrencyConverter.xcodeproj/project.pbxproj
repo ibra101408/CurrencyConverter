@@ -3,14 +3,12 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 60;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		F871AA982EA7182B000D266A /* Config.plist in Sources */ = {isa = PBXBuildFile; fileRef = F871AA972EA71827000D266A /* Config.plist */; };
 		F871AA9A2EA71978000D266A /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = F871AA992EA7196E000D266A /* .gitignore */; };
-		F8904AB32E56342300628B3D /* CurrencyConverterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8904AB22E56342300628B3D /* CurrencyConverterApp.swift */; };
-		F8904AB52E56342300628B3D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8904AB42E56342300628B3D /* ContentView.swift */; };
 		F8904AB72E56342400628B3D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F8904AB62E56342400628B3D /* Assets.xcassets */; };
 		F8904ABA2E56342400628B3D /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F8904AB92E56342400628B3D /* Preview Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -36,14 +34,22 @@
 		F871AA972EA71827000D266A /* Config.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Config.plist; sourceTree = "<group>"; };
 		F871AA992EA7196E000D266A /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		F8904AAF2E56342300628B3D /* JustCurrencyConverter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JustCurrencyConverter.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		F8904AB22E56342300628B3D /* CurrencyConverterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyConverterApp.swift; sourceTree = "<group>"; };
-		F8904AB42E56342300628B3D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		F8904AB62E56342400628B3D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F8904AB92E56342400628B3D /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		F8904ABF2E56342400628B3D /* JustCurrencyConverterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JustCurrencyConverterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F8904AC92E56342500628B3D /* JustCurrencyConverterUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JustCurrencyConverterUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F8D1EA782E8CB10D00E63736 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		F86661732EB1271C00B54822 /* App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = App; sourceTree = "<group>"; };
+		F86661742EB1273F00B54822 /* Models */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Models; sourceTree = "<group>"; };
+		F86661752EB1274700B54822 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
+		F86661762EB1274F00B54822 /* ViewModels */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ViewModels; sourceTree = "<group>"; };
+		F86661772EB1276600B54822 /* Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Views; sourceTree = "<group>"; };
+		F86661782EB1277200B54822 /* Utilities */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Utilities; sourceTree = "<group>"; };
+		F866619D2EB12C5A00B54822 /* Preview Content */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "Preview Content"; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		F8904AAC2E56342300628B3D /* Frameworks */ = {
@@ -93,21 +99,18 @@
 		F8904AB12E56342300628B3D /* CurrencyConverter */ = {
 			isa = PBXGroup;
 			children = (
-				F8904AB22E56342300628B3D /* CurrencyConverterApp.swift */,
-				F8904AB42E56342300628B3D /* ContentView.swift */,
+				F866619D2EB12C5A00B54822 /* Preview Content */,
+				F86661732EB1271C00B54822 /* App */,
+				F86661742EB1273F00B54822 /* Models */,
+				F86661752EB1274700B54822 /* Services */,
+				F86661762EB1274F00B54822 /* ViewModels */,
+				F86661772EB1276600B54822 /* Views */,
+				F86661782EB1277200B54822 /* Utilities */,
 				F8904AB62E56342400628B3D /* Assets.xcassets */,
-				F8904AB82E56342400628B3D /* Preview Content */,
-				F871AA972EA71827000D266A /* Config.plist */,
 				F871AA992EA7196E000D266A /* .gitignore */,
+				F871AA972EA71827000D266A /* Config.plist */,
 			);
 			path = CurrencyConverter;
-			sourceTree = "<group>";
-		};
-		F8904AB82E56342400628B3D /* Preview Content */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = "Preview Content";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -124,6 +127,15 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F86661732EB1271C00B54822 /* App */,
+				F86661742EB1273F00B54822 /* Models */,
+				F86661752EB1274700B54822 /* Services */,
+				F86661762EB1274F00B54822 /* ViewModels */,
+				F86661772EB1276600B54822 /* Views */,
+				F86661782EB1277200B54822 /* Utilities */,
+				F866619D2EB12C5A00B54822 /* Preview Content */,
 			);
 			name = JustCurrencyConverter;
 			productName = CurrencyConverter;
@@ -241,9 +253,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F8904AB52E56342300628B3D /* ContentView.swift in Sources */,
 				F871AA982EA7182B000D266A /* Config.plist in Sources */,
-				F8904AB32E56342300628B3D /* CurrencyConverterApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
